@@ -161,7 +161,7 @@
     <target name="get-files" depends="check-files">
         <mkdir dir="temp"/>
         <antcall target="get-reuters"/>
-        <antcall target="expand-reuters"/>
+        <!--<antcall target="expand-reuters"/>-->
         <antcall target="extract-reuters"/>
     </target>
 
@@ -198,8 +198,31 @@
     </invoke-module-javadoc>
     </target>
 
-    <property name="task.alg" location="conf/micro-standard.alg"/>
-    <property name="task.mem" value="140M"/>
+    <property name="task.alg" location="conf/indexLineFile.alg"/>
+    <property name="topic" location="conf/topics.401-450"/>
+    <property name="qrels" location="conf/qrels.trec8.adhoc.parts1-5"/>
+    <property name="submissionFile" location="conf/submissionFile"/>
+    <property name="indexfile" value="work/index"/>
+    <property name="task.mem" value="6000M"/>
+
+
+    <target name="run-quality" depends="compile"
+            description="Run compound penalty perf test (optional: -Dtask.alg=your-algorithm-file -Dtask.mem=java-max-mem)">
+      <echo>Working Directory: ${working.dir}</echo>
+      <java classname="org.apache.lucene.benchmark.quality.trec.QueryDriver" maxmemory="${task.mem}" fork="true">
+        <classpath refid="run.classpath"/>
+        <arg file="${topic}"/>
+        <arg file="${qrels}"/>
+        <arg file="${submissionFile}"/>
+        <arg file="${indexfile}"/>
+        <arg file="T"/>
+      </java>
+    </target>
+
+  <!--Path topicsFile = Paths.get(args[0]);-->
+  <!--Path qrelsFile = Paths.get(args[1]);-->
+  <!--Path submissionFile = Paths.get(args[2]);-->
+
 
     <target name="run-task" depends="compile,check-files,get-files" 
      description="Run compound penalty perf test (optional: -Dtask.alg=your-algorithm-file -Dtask.mem=java-max-mem)">

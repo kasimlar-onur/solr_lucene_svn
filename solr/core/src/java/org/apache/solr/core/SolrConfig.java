@@ -18,6 +18,22 @@
 package org.apache.solr.core;
 
 
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.xpath.XPathConstants;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.lucene.index.IndexDeletionPolicy;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.util.Version;
@@ -48,22 +64,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
-
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPathConstants;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.apache.solr.core.SolrConfig.PluginOpts.MULTI_OK;
 import static org.apache.solr.core.SolrConfig.PluginOpts.NOOP;
@@ -102,6 +102,8 @@ public class SolrConfig extends Config {
   private boolean addHttpRequestToContext;
 
   private final SolrRequestParsers solrRequestParsers;
+
+  private MT15PropertyReader mt15PropertyReader;
   
   /** Creates a default instance from the solrconfig.xml. */
   public SolrConfig()
@@ -138,6 +140,11 @@ public class SolrConfig extends Config {
   public SolrConfig(String instanceDir, String name, InputSource is)
   throws ParserConfigurationException, IOException, SAXException {
     this(new SolrResourceLoader(instanceDir), name, is);
+  }
+
+  public MT15PropertyReader readMT15Settings() {
+    if (mt15PropertyReader == null) mt15PropertyReader = new MT15PropertyReader();
+    return mt15PropertyReader;
   }
 
   public static SolrConfig readFromResourceLoader(SolrResourceLoader loader, String name) {

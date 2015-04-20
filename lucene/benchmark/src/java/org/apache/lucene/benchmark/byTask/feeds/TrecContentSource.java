@@ -42,7 +42,7 @@ import org.apache.lucene.benchmark.byTask.utils.StreamUtils;
  * Supports the following configuration parameters (on top of
  * {@link ContentSource}):
  * <ul>
- * <li><b>work.dir</b> - specifies the working directory. Required if "docs.dir"
+ * <li><b>work.dirwork.dir</b> - specifies the working directory. Required if "docs.dir"
  * denotes a relative path (<b>default=work</b>).
  * <li><b>docs.dir</b> - specifies the directory where the TREC files reside.
  * Can be set to a relative path if "work.dir" is also specified
@@ -330,7 +330,7 @@ public class TrecContentSource extends ContentSource {
       encoding = StandardCharsets.ISO_8859_1.name();
     }
     // iteration exclusion in doc name 
-    excludeDocnameIteration = config.get("content.source.excludeIteration", false);
+    excludeDocnameIteration = config.get("content.source.excludeIteration", true);
   }
 
 }

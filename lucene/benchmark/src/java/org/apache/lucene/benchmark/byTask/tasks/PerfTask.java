@@ -20,8 +20,6 @@ package org.apache.lucene.benchmark.byTask.tasks;
 import java.util.Locale;
 
 import org.apache.lucene.benchmark.byTask.PerfRunData;
-import org.apache.lucene.benchmark.byTask.stats.Points;
-import org.apache.lucene.benchmark.byTask.stats.TaskStats;
 import org.apache.lucene.benchmark.byTask.utils.Config;
 
 /**
@@ -130,24 +128,25 @@ public abstract class PerfTask implements Cloneable {
    * @return number of work items done by this task.
    */
   public final int runAndMaybeStats(boolean reportStats) throws Exception {
-    if (!reportStats || shouldNotRecordStats()) {
+    //if (!reportStats || shouldNotRecordStats()) {
       setup();
       int count = doLogic();
       count = disableCounting ? 0 : count;
       tearDown();
+
       return count;
-    }
-    if (reportStats && depth <= maxDepthLogStart && !shouldNeverLogAtStart()) {
-      System.out.println("------------> starting task: " + getName());
-    }
-    setup();
-    Points pnts = runData.getPoints();
-    TaskStats ts = pnts.markTaskStart(this, runData.getConfig().getRoundNumber());
-    int count = doLogic();
-    count = disableCounting ? 0 : count;
-    pnts.markTaskEnd(ts, count);
-    tearDown();
-    return count;
+//    }
+//    if (reportStats && depth <= maxDepthLogStart && !shouldNeverLogAtStart()) {
+//      System.out.println("------------> starting task: " + getName());
+//    }
+//    setup();
+//    Points pnts = runData.getPoints();
+//    TaskStats ts = pnts.markTaskStart(this, runData.getConfig().getRoundNumber());
+//    int count = doLogic();
+//    count = disableCounting ? 0 : count;
+//    pnts.markTaskEnd(ts, count);
+//    tearDown();
+//    return count;
   }
 
   /**

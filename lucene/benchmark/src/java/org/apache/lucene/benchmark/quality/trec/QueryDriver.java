@@ -17,14 +17,6 @@ package org.apache.lucene.benchmark.quality.trec;
  * limitations under the License.
  */
 
-import org.apache.lucene.benchmark.quality.utils.SimpleQQParser;
-import org.apache.lucene.benchmark.quality.utils.SubmissionReport;
-import org.apache.lucene.benchmark.quality.*;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.store.FSDirectory;
-
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
@@ -34,6 +26,18 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
+
+import org.apache.lucene.benchmark.quality.Judge;
+import org.apache.lucene.benchmark.quality.QualityBenchmark;
+import org.apache.lucene.benchmark.quality.QualityQuery;
+import org.apache.lucene.benchmark.quality.QualityQueryParser;
+import org.apache.lucene.benchmark.quality.QualityStats;
+import org.apache.lucene.benchmark.quality.utils.SimpleQQParser;
+import org.apache.lucene.benchmark.quality.utils.SubmissionReport;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.store.FSDirectory;
 
 
 /**

@@ -17,6 +17,12 @@
 
 package org.apache.solr.handler.component;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
 import org.apache.lucene.index.ExitableDirectoryReader;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrException;
@@ -40,12 +46,6 @@ import org.apache.solr.util.plugin.SolrCoreAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-
 
 /**
  *
@@ -68,7 +68,7 @@ public class SearchHandler extends RequestHandlerBase implements SolrCoreAware ,
   private ShardHandlerFactory shardHandlerFactory ;
   private PluginInfo shfInfo;
 
-  protected List<String> getDefaultComponents()
+  public List<String> getDefaultComponents()
   {
     ArrayList<String> names = new ArrayList<>(6);
     names.add( QueryComponent.COMPONENT_NAME );

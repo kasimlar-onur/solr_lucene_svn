@@ -46,6 +46,12 @@
     <dependency org="log4j" name="log4j" rev="${/log4j/log4j}" conf="compile"/>
     <dependency org="org.slf4j" name="slf4j-log4j12" rev="${/org.slf4j/slf4j-log4j12}" conf="compile"/>
 
+    <dependency org="org.codehaus.jackson" name="jackson-mapper-asl" rev="1.9.9" conf="compile"/>
+    <dependency org="org.codehaus.jackson" name="jackson-core-asl" rev="1.9.2" conf="compile"/>
+    <dependency org="org.codehaus.jackson" name="jackson-jaxrs" rev="1.9.2" conf="compile"/>
+
+
+
     <dependency org="javax.servlet" name="javax.servlet-api" rev="${/javax.servlet/javax.servlet-api}" conf="test"/>
     <dependency org="org.easymock" name="easymock" rev="${/org.easymock/easymock}" conf="test"/>
     <dependency org="cglib" name="cglib-nodep" rev="${/cglib/cglib-nodep}" conf="test"/>

@@ -17,8 +17,37 @@
 
 package org.apache.solr.servlet;
 
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.http.Header;
+import org.apache.http.HeaderIterator;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
@@ -29,12 +58,8 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.util.EntityUtils;
-import org.apache.http.Header;
-import org.apache.http.HeaderIterator;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpResponse;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
+import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.Aliases;
@@ -49,7 +74,6 @@ import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
-import org.apache.solr.common.util.ContentStreamBase;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.StrUtils;
@@ -58,13 +82,11 @@ import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrResourceLoader;
-import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.handler.ContentStreamHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequestBase;
 import org.apache.solr.request.SolrRequestHandler;
 import org.apache.solr.request.SolrRequestInfo;
-import org.apache.solr.response.BinaryQueryResponseWriter;
 import org.apache.solr.response.QueryResponseWriter;
 import org.apache.solr.response.QueryResponseWriterUtil;
 import org.apache.solr.response.SolrQueryResponse;
@@ -73,30 +95,6 @@ import org.apache.solr.servlet.cache.Method;
 import org.apache.solr.update.processor.DistributingUpdateProcessorFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 
 /**
  * This filter looks at the incoming URL maps them to handlers defined in solrconfig.xml
@@ -107,6 +105,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   private static final String CONNECTION_HEADER = "Connection";
   private static final String TRANSFER_ENCODING_HEADER = "Transfer-Encoding";
   private static final String CONTENT_LENGTH_HEADER = "Content-Length";
+  private MT15HelperImpl propertiesHelper = new MT15HelperImpl();
 
   static final Logger log = LoggerFactory.getLogger(SolrDispatchFilter.class);
 
@@ -199,10 +198,24 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    if(response instanceof HttpServletResponse) {
+      log.debug("Setting header for httpServletResponse.");
+      HttpServletResponse alteredResponse = ((HttpServletResponse) response);
+      addCorsHeader(alteredResponse);
+    }
     doFilter(request, response, chain, false);
   }
+
+  private void addCorsHeader(HttpServletResponse response){
+    //TODO: externalize the Allow-Origin
+    response.addHeader("Access-Control-Allow-Origin", "*");
+    response.addHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, HEAD");
+    response.addHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  }
+
   
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain, boolean retry) throws IOException, ServletException {
+    log.info("post request");
     if( abortErrorMessage != null ) {
       ((HttpServletResponse)response).sendError( 500, abortErrorMessage );
       return;
@@ -231,6 +244,39 @@ public class SolrDispatchFilter extends BaseSolrFilter {
           // this lets you handle /update/commit when /update is a servlet
           path += req.getPathInfo();
         }
+        if (req.getMethod().equals("OPTIONS")) {
+          resp.setHeader("Allow", "POST");
+          resp.setStatus(HttpServletResponse.SC_OK);
+          return;
+        }
+        log.info("pathInfo for the request: " + path);
+        log.info("is post request: " + req.getMethod());
+
+        // mt15 code for reading the properties
+        if (path.endsWith(MT15HelperImpl.REQUEST_PATH)) {
+          // get core for the request
+          core = propertiesHelper.getCoreByPath(cores,path);
+          log.info("core is not null: {}", core != null);
+          propertiesHelper.readSolrProperties(req, resp, core);
+          return;
+        }
+
+        // mt15 code for setting the properties
+        if (path.endsWith(MT15HelperImpl.UPDATE_PATH)) {
+          core = propertiesHelper.getCoreByPath(cores,path);
+          log.info("core is not null: {}", core != null);
+          propertiesHelper.updateSolrProperties(req, resp, core);
+          return;
+        }
+
+        // mt15 code for getting settings file + description
+        if (path.endsWith(MT15HelperImpl.REQUEST_CONFIG_FILES)) {
+          core = propertiesHelper.getCoreByPath(cores, path);
+          log.info("core is not null: {}", core != null);
+          propertiesHelper.readSettingsFolder(req, resp, core);
+        }
+
+
         if( pathPrefix != null && path.startsWith( pathPrefix ) ) {
           path = path.substring( pathPrefix.length() );
         }
@@ -267,7 +313,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
           if( idx > 1 ) {
             // try to get the corename as a request parameter first
             corename = path.substring( 1, idx );
-            
+
             // look at aliases
             if (cores.isZooKeeperAware()) {
               origCorename = corename;
@@ -282,7 +328,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
                 }
               }
             }
-            
+
             core = cores.getCore(corename);
 
             if (core != null) {
@@ -295,16 +341,16 @@ public class SolrDispatchFilter extends BaseSolrFilter {
             }
           }
         }
-        
+
         if (core == null && cores.isZooKeeperAware()) {
           // we couldn't find the core - lets make sure a collection was not specified instead
           core = getCoreByCollection(cores, corename, path);
-          
+
           if (core != null) {
             // we found a core, update the path
             path = path.substring( idx );
           }
-          
+
           // if we couldn't find it locally, look on other nodes
           if (core == null && idx > 0) {
             String coreUrl = getRemotCoreUrl(cores, corename, origCorename);
@@ -329,7 +375,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
               }
             }
           }
-          
+
           // try the default core
           if (core == null) {
             core = cores.getCore("");
@@ -391,7 +437,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
             if (usingAliases) {
               processAliases(solrReq, aliases, collectionsList);
             }
-            
+
             final Method reqMethod = Method.getMethod(req.getMethod());
             HttpCacheHeaderUtil.setCacheControlHeader(config, resp, reqMethod);
             // unless we have been explicitly told not to, do cache validation
@@ -521,9 +567,8 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       
       urlstr += queryString == null ? "" : "?" + queryString;
       
-      URL url = new URL(urlstr);
-      boolean isPostOrPutRequest = "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod());
-
+      boolean isPostOrPutRequest = "POST".equals(req.getMethod()) || "OPTIONS".equals(req.getMethod());
+      log.info("req method: " + req.getMethod());
       if ("GET".equals(req.getMethod())) {
         method = new HttpGet(urlstr);
       }
@@ -531,11 +576,19 @@ public class SolrDispatchFilter extends BaseSolrFilter {
         method = new HttpHead(urlstr);
       }
       else if (isPostOrPutRequest) {
+        log.info("is post request: " + "POST".equals(req.getMethod()));
         HttpEntityEnclosingRequestBase entityRequest =
           "POST".equals(req.getMethod()) ? new HttpPost(urlstr) : new HttpPut(urlstr);
         HttpEntity entity = new InputStreamEntity(req.getInputStream(), req.getContentLength());
         entityRequest.setEntity(entity);
         method = entityRequest;
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(entityRequest.getEntity().getContent()));
+        String line = "";
+        while((line = reader.readLine()) != null) {
+          log.info("line: " + line);
+        }
+
       }
       else if ("DELETE".equals(req.getMethod())) {
         method = new HttpDelete(urlstr);
